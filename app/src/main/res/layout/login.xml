@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <data>
+        <variable
+            name="LoginViewModel"
+            type="com.example.demoblutooth.LoginViewModel" />
+    </data>
+
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:layout_marginTop="30dp"
+            android:textSize="20sp"
+            android:layout_gravity="center"
+            android:text="LOGIN"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <EditText
+            android:text="@={LoginViewModel.email}"
+            android:id="@+id/edt_email"
+            android:hint="@string/email"
+            android:layout_marginTop="30dp"
+            android:background="@drawable/custom_edittext"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="35dp"/>
+        <EditText
+            android:text="@={LoginViewModel.password}"
+            android:id="@+id/edt_pass"
+            android:hint="@string/password"
+            android:inputType="textPassword"
+            android:layout_marginTop="30dp"
+            android:background="@drawable/custom_edittext"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="35dp"/>
+        <TextView
+            android:layout_marginTop="20dp"
+            android:layout_gravity="center"
+            android:textSize="18sp"
+            android:text="@{LoginViewModel.messageLogin}"
+            android:visibility="visible"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <Button
+            android:onClick="@{() ->LoginViewModel.onClickLogin()}"
+            android:id="@+id/btn_Login"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:background="@drawable/custom_edittext"
+            android:text="@string/login"
+            android:layout_marginTop="20dp"
+            android:layout_gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+</layout>
