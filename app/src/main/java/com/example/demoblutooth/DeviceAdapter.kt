@@ -13,5 +13,6 @@ class DeviceAdapter(context: Context, devices: MutableList<String>) : ArrayAdapt
         textView.text = device
         return view
 
+
     }
 }

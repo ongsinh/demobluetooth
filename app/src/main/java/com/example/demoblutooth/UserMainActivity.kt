@@ -22,5 +22,7 @@ class UserMainActivity: AppCompatActivity() {
         //lk viewmodel vs bocuc
         binding.loginViewModel = viewmodel
         binding.lifecycleOwner = this //cho phep livedata quan sat trong hoaạt động
+
+
     }
 }
