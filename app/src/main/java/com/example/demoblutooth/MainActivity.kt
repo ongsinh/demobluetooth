@@ -5,13 +5,17 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.ListView
 import android.widget.Toast
@@ -19,11 +23,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import java.io.IOException
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
+    private val NAME="Bluetooth"
+    private val MY_UUID: UUID = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66")
+    private var acceptThread: AcceptThead? = null
     private lateinit var btnOn: Button
     private lateinit var btnListDevice: Button
     private lateinit var btnScan: Button
+    private lateinit var btnAccept: Button
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private lateinit var btEnablingIntent: Intent
     private var requestCodeForEnable: Int = 1
@@ -69,6 +79,7 @@ class MainActivity : AppCompatActivity() {
             // Quyền bị từ chối
             Toast.makeText(applicationContext, "Permission Denied", Toast.LENGTH_LONG).show()
         }
+
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -81,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         lvDevice = findViewById(R.id.lvDevice)
         btnListDevice = findViewById(R.id.btnShowdevice) // Đảm bảo ID này chính xác
         btnScan = findViewById(R.id.btnScan)
+        btnAccept = findViewById(R.id.btnAccept)
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         btEnablingIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
@@ -126,10 +138,66 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+
+        btnAccept.setOnClickListener {
+            startAcceptThread()
+        }
+
+
         // Khởi tạo adapter cho ListView
         deviceAdapter = DeviceAdapter(this, device)
         lvDevice.adapter = deviceAdapter
     }
+
+    private fun startAcceptThread() {
+        acceptThread = AcceptThead()
+        acceptThread?.start()
+
+    }
+
+    @SuppressLint("MissingPermission")
+    private inner class AcceptThead(): Thread() {
+        private val mmServerSocket: BluetoothServerSocket? by lazy (LazyThreadSafetyMode.NONE) {
+            bluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID)
+        }
+
+        override fun run(){
+            // Keep listening until exception occurs or a socket is returned.
+            var shouldLoop = true
+            while (shouldLoop) {
+                val socket: BluetoothSocket? = try {
+                    mmServerSocket?.accept()
+                } catch (e: IOException) {
+                    Log.e(TAG, "Socket's accept() method failed", e)
+                    shouldLoop = false
+                    null
+                }
+                socket?.also {
+                    manageMyConnectedSocket(it)
+                    mmServerSocket?.close()
+                    shouldLoop = false
+                }
+            }
+        }
+
+        // Closes the connect socket and causes the thread to finish.
+        fun cancel() {
+            try {
+                mmServerSocket?.close()
+            } catch (e: IOException) {
+                Log.e(TAG, "Could not close the connect socket", e)
+            }
+        }
+    }
+
+    // xu ly thanh cong tu thiet bị khac
+    @SuppressLint("MissingPermission")
+    private fun manageMyConnectedSocket(it: BluetoothSocket) {
+        runOnUiThread {
+            Toast.makeText(this, "Device connect : ${it.remoteDevice.name}",Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     @SuppressLint("MissingPermission")
     private fun startBluetoothScan() {
