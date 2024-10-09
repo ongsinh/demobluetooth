@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
 
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    <TextView xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/tv_device_bluetooth"
-        android:layout_width="match_parent"
+        android:layout_width="200sp"
         android:layout_height="wrap_content"
         android:padding="16dp"
         android:textSize="16sp"
         android:textColor="@android:color/black" />
+    <Button
+        android:layout_marginLeft="20dp"
+        android:id="@+id/btnConnect"
+        android:text="Connect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+</LinearLayout>
 
