@@ -5,19 +5,23 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.widget.Button
-import android.widget.ListView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -28,6 +32,7 @@ import androidx.recyclerview.widget.RecyclerView
 import java.io.IOException
 import java.util.UUID
 
+@Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity() {
     private val NAME="Bluetooth"
     private val MY_UUID: UUID = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66")
@@ -42,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private val device = mutableListOf<BluetoothDevice>()  // Danh sách thiết bị
     private lateinit var deviceAdapter: DeviceAdapter // Adapter để hiển thị thiết bị
+    private var bluetoothService : BluetoothService ?= null
 
     private val receiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission", "NotifyDataSetChanged")
@@ -53,20 +59,17 @@ class MainActivity : AppCompatActivity() {
                     val deviceFound: BluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
                     val deviceName = deviceFound.name
-                    val deviceAddress = deviceFound.address
 
-                    if(!deviceName.isNullOrEmpty()) {
-                        // Thêm thiết bị vào danh sách
-                        // Kiểm tra nếu thiết bị đã có trong danh sách chưa
+                    if(!deviceName.isNullOrEmpty() && !device.contains(deviceFound)) {
                         if (!device.contains(deviceFound)) {
                             device.add(deviceFound)
-                            deviceAdapter.notifyDataSetChanged()  // Cập nhật danh sách
+                            deviceAdapter.notifyItemInserted(device.size -1)
                         }
                     }
                 }
 
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                    Toast.makeText(context, "Discovery finished", Toast.LENGTH_SHORT).show()
+                    bluetoothAdapter.startDiscovery()
                 }
             }
         }
@@ -77,13 +80,26 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Quyền được cấp, kích hoạt Bluetooth
-            bluetoothOnMethod()
+            startBLEscan()
         } else {
             // Quyền bị từ chối
             Toast.makeText(applicationContext, "Permission Denied", Toast.LENGTH_LONG).show()
         }
 
+    }
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
+            bluetoothService = (service as BluetoothService.LocalBinder).getService()
+            if (!bluetoothService?.initialize()!!) {
+                Log.e("DeviceControlActivity", "Unable to initialize Bluetooth")
+                finish()
+            }
+        }
+
+        override fun onServiceDisconnected(componentName: ComponentName) {
+            bluetoothService = null
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -104,9 +120,12 @@ class MainActivity : AppCompatActivity() {
         btEnablingIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         deviceAdapter = DeviceAdapter(device) { device ->
             // Xử lý khi nhấn nút kết nối (nếu có)
-            connectToDevice(device)
+            val deviceAdress = device.address
+            connectToDevice(deviceAdress)
         }
         recyclerView.adapter = deviceAdapter
+        val gattServiceIntent = Intent(this, BluetoothService::class.java)
+        bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
 
         // Kiểm tra và yêu cầu quyền BLUETOOTH_CONNECT
@@ -159,16 +178,24 @@ class MainActivity : AppCompatActivity() {
                 requestBluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_SCAN)
             }
         }
-
     }
 
+    @SuppressLint("MissingPermission")
     private fun startBLEscan() {
-        //val bluetoothManager = getSystemService()
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+
+        if (bluetoothAdapter.isEnabled) {
+            val scanner = bluetoothAdapter.bluetoothLeScanner
+            scanner?.startScan(leScanCallBack)
+        } else {
+            Log.d("BLE Scan", "Bluetooth is not enabled.")
+        }
+
     }
 
-    private fun connectToDevice(device: BluetoothDevice) {
-        acceptThread = AcceptThead(device)
-        acceptThread?.start()
+    private fun connectToDevice(deviceAdress : String) {
+        bluetoothService?.connect(deviceAdress)
     }
 
 
@@ -258,7 +285,6 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(receiver, filter)
 
         bluetoothAdapter.startDiscovery()
-        Toast.makeText(this, "Scanning for devices...", Toast.LENGTH_SHORT).show()
     }
 
     @SuppressLint("MissingPermission", "NotifyDataSetChanged")
@@ -298,9 +324,47 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val leScanCallBack = object : ScanCallback(){
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult?) {
+            super.onScanResult(callbackType, result)
+            val device = result?.device
+            if(!device?.name.isNullOrEmpty()){
+                device?.let { deviceAdapter.addDevice(it) }
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onBatchScanResults(results: MutableList<ScanResult>?) {
+            super.onBatchScanResults(results)
+            if (results != null) {
+                for(result in results){
+                    val device = result?.device
+                    if(!device?.name.isNullOrEmpty()){
+                        device?.let { deviceAdapter.addDevice(it) }
+                    }
+                }
+            }
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            super.onScanFailed(errorCode)
+            Log.d("BLE Scan", "Scan error")
+
+        }
+    }
+
+
+
+
+
 
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(receiver)  // Hủy đăng ký Receiver khi không cần thiết
+        unbindService(serviceConnection)
+        bluetoothService = null
     }
+
+
 }

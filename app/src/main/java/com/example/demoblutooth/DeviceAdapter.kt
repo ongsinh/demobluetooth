@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.demoblutooth.R
 
 class DeviceAdapter(
-    private val deviceList: List<BluetoothDevice>,
+    private val deviceList: MutableList<BluetoothDevice>,
     private val onConnectClick : (BluetoothDevice) ->Unit
 ): RecyclerView.Adapter<DeviceAdapter.DeviceViewHolder>() {
     inner class DeviceViewHolder(view: View) : RecyclerView.ViewHolder(view){
@@ -19,6 +19,7 @@ class DeviceAdapter(
         @SuppressLint("MissingPermission")
         fun bind(device: BluetoothDevice){
             deviceTextview.text = device.name ?: "Unknow"
+
             btnConncet.setOnClickListener {
                 onConnectClick(device)
             }
@@ -40,4 +41,11 @@ class DeviceAdapter(
         holder.bind(deviceList[position])
     }
 
+    //update list when device add
+    fun addDevice(device: BluetoothDevice){
+        if(!deviceList.contains(device)){
+            deviceList.add(device)
+            notifyItemChanged(deviceList.size - 1)
+        }
+    }
 }
