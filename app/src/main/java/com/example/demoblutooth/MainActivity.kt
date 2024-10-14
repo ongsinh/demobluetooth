@@ -34,9 +34,6 @@ import java.util.UUID
 
 @Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity() {
-    private val NAME="Bluetooth"
-    private val MY_UUID: UUID = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66")
-    private var acceptThread: AcceptThead? = null
     private lateinit var btnOn: Button
     private lateinit var btnListDevice: Button
     private lateinit var btnScan: Button
@@ -45,8 +42,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btEnablingIntent: Intent
     private var requestCodeForEnable: Int = 1
     private lateinit var recyclerView: RecyclerView
-    private val device = mutableListOf<BluetoothDevice>()  // Danh sách thiết bị
-    private lateinit var deviceAdapter: DeviceAdapter // Adapter để hiển thị thiết bị
+    private val device = mutableListOf<BluetoothDevice>()
+    private lateinit var deviceAdapter: DeviceAdapter
     private var bluetoothService : BluetoothService ?= null
 
     private val receiver = object : BroadcastReceiver() {
@@ -82,7 +79,6 @@ class MainActivity : AppCompatActivity() {
         if (isGranted) {
             startBLEscan()
         } else {
-            // Quyền bị từ chối
             Toast.makeText(applicationContext, "Permission Denied", Toast.LENGTH_LONG).show()
         }
 
@@ -112,14 +108,13 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recycalview)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        btnListDevice = findViewById(R.id.btnShowdevice) // Đảm bảo ID này chính xác
+        btnListDevice = findViewById(R.id.btnShowdevice)
         btnScan = findViewById(R.id.btnScan)
         btnScanBLE = findViewById(R.id.btnScanBLE)
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         btEnablingIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         deviceAdapter = DeviceAdapter(device) { device ->
-            // Xử lý khi nhấn nút kết nối (nếu có)
             val deviceAdress = device.address
             connectToDevice(deviceAdress)
         }
@@ -128,14 +123,12 @@ class MainActivity : AppCompatActivity() {
         bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
 
-        // Kiểm tra và yêu cầu quyền BLUETOOTH_CONNECT
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
             == PackageManager.PERMISSION_GRANTED
         ) {
-            // Quyền đã được cấp, kích hoạt Bluetooth
             bluetoothOnMethod()
         } else {
-            // Yêu cầu quyền
             requestBluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
@@ -199,76 +192,6 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-//    @SuppressLint("MissingPermission")
-//    private inner class AcceptThead(device: BluetoothDevice): Thread() {
-//        private val mmServerSocket: BluetoothServerSocket? by lazy (LazyThreadSafetyMode.NONE) {
-//            bluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID)
-//        }
-//
-//        override fun run(){
-//            // Keep listening until exception occurs or a socket is returned.
-//            var shouldLoop = true
-//            while (shouldLoop) {
-//                val socket: BluetoothSocket? = try {
-//                    mmServerSocket?.accept()
-//                } catch (e: IOException) {
-//                    Log.e(TAG, "Socket's accept() method failed", e)
-//                    shouldLoop = false
-//                    null
-//                }
-//                socket?.also {
-//                    manageMyConnectedSocket(it)
-//                    mmServerSocket?.close()
-//                    shouldLoop = false
-//                }
-//            }
-//        }
-//
-//        // Closes the connect socket and causes the thread to finish.
-//        fun cancel() {
-//            try {
-//                mmServerSocket?.close()
-//            } catch (e: IOException) {
-//                Log.e(TAG, "Could not close the connect socket", e)
-//            }
-//        }
-//    }
-
-
-
-    @SuppressLint("MissingPermission")
-    private inner class AcceptThead(device: BluetoothDevice) : Thread() {
-
-        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            device.createRfcommSocketToServiceRecord(MY_UUID)
-        }
-
-        public override fun run() {
-            bluetoothAdapter.cancelDiscovery()
-
-            mmSocket?.let { socket ->
-                socket.connect()
-                manageMyConnectedSocket(socket)
-            }
-        }
-
-        // Closes the client socket and causes the thread to finish.
-        fun cancel() {
-            try {
-                mmSocket?.close()
-            } catch (e: IOException) {
-                Log.e(TAG, "Could not close the client socket", e)
-            }
-        }
-    }
-
-    // xu ly thanh cong tu thiet bị khac
-    @SuppressLint("MissingPermission")
-    private fun manageMyConnectedSocket(it: BluetoothSocket) {
-        runOnUiThread {
-            Toast.makeText(this, "Device connect : ${it.remoteDevice.name}",Toast.LENGTH_SHORT).show()
-        }
-    }
 
 
     @SuppressLint("MissingPermission", "NotifyDataSetChanged")
@@ -355,16 +278,13 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
-
-
-
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(receiver)  // Hủy đăng ký Receiver khi không cần thiết
+        unregisterReceiver(receiver)
         unbindService(serviceConnection)
         bluetoothService = null
     }
+
 
 
 }
